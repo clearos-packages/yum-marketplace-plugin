@@ -1,5 +1,5 @@
 Name: yum-marketplace-plugin
-Version: 1.4
+Version: 1.5
 Release: 1%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
@@ -34,6 +34,9 @@ rm -rf %{buildroot}
 /usr/lib/yum-plugins/clearcenter-marketplace.*
 
 %changelog
+* Tue Oct 29 2013 ClearCenter <developer@clearcenter.com> - 1.5-1
+- Added private BETA repository support
+
 * Thu Dec 06 2012 ClearCenter <developer@clearcenter.com> - 1.3-3
 - Bumped web service version to 1.1
 

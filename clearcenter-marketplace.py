@@ -10,20 +10,21 @@ import json
 import shutil
 
 from urlparse import urlparse
-from yum.plugins import PluginYumExit, TYPE_CORE
+from yum.plugins import PluginYumExit, TYPE_INTERACTIVE
 from yum.yumRepo import YumRepository as Repository
 from xml.etree.ElementTree import parse
 
 requires_api_version = '2.3'
-plugin_type = (TYPE_CORE,)
+plugin_type = (TYPE_INTERACTIVE,)
 
 class wcRepo:
-    def __init__(self, arch):
+    def __init__(self, arch, enablebeta):
 
         self.url = sdn_url
         self.request = sdn_request
         self.method = sdn_method
         self.basearch = arch
+        self.enablebeta = enablebeta
 
         if os.getenv('SDN_URL') != None:
             self.url = os.getenv('SDN_URL')
@@ -90,7 +91,7 @@ class wcRepo:
         params = {
             'method': self.method, 'hostkey': hostkey,
             'vendor': osvendor, 'osname': osname, 'osversion': osversion,
-            'arch': self.basearch }
+            'arch': self.basearch, 'enablebeta': str(self.enablebeta) }
         request = "%s?%s" %(self.request, urllib.urlencode(params))
 
         hc = httplib.HTTPSConnection(self.url)
@@ -146,6 +147,12 @@ class wcRepo:
                 kv[k] = v.rstrip()
         return kv
 
+def config_hook(conduit):
+    parser = conduit.getOptParser()
+    parser.add_option('', '--enablebeta', dest='enablebeta', 
+        action='store_true', default=False,
+        help="enable one ore more ClearOS BETA repositories")
+
 def init_hook(conduit):
     global sdn_url, sdn_request, sdn_method
 
@@ -160,7 +167,9 @@ def prereposetup_hook(conduit):
     global wc_repos
 
     conduit.info(2, 'ClearCenter Marketplace: fetching repositories...')
-    wc_repo = wcRepo(conduit._base.arch.basearch)
+
+    opts, commands = conduit.getCmdLine()
+    wc_repo = wcRepo(conduit._base.arch.basearch, opts.enablebeta)
     
     try:
         wc_repos = wc_repo.fetch()
