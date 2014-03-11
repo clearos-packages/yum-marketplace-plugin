@@ -10,21 +10,21 @@ import json
 import shutil
 
 from urlparse import urlparse
-from yum.plugins import PluginYumExit, TYPE_INTERACTIVE
+from yum.plugins import PluginYumExit, TYPE_CORE
 from yum.yumRepo import YumRepository as Repository
 from xml.etree.ElementTree import parse
 
 requires_api_version = '2.3'
-plugin_type = (TYPE_INTERACTIVE,)
+plugin_type = (TYPE_CORE,)
 
 class wcRepo:
-    def __init__(self, arch, enablebeta):
+    def __init__(self, arch):
 
         self.url = sdn_url
         self.request = sdn_request
         self.method = sdn_method
         self.basearch = arch
-        self.enablebeta = enablebeta
+        self.enable_beta = enable_beta
 
         if os.getenv('SDN_URL') != None:
             self.url = os.getenv('SDN_URL')
@@ -32,6 +32,8 @@ class wcRepo:
             self.request = os.getenv('SDN_REQUEST')
         if os.getenv('SDN_METHOD') != None:
             self.method = os.getenv('SDN_METHOD')
+        if os.getenv('ENABLE_BETA') != None:
+            self.enable_beta = os.getenv('ENABLE_BETA')
 
         self.organization_vendor = { 'clearcenter.com': 'clear' }
 
@@ -91,7 +93,7 @@ class wcRepo:
         params = {
             'method': self.method, 'hostkey': hostkey,
             'vendor': osvendor, 'osname': osname, 'osversion': osversion,
-            'arch': self.basearch, 'enablebeta': str(self.enablebeta) }
+            'arch': self.basearch, 'enablebeta': str(self.enable_beta) }
         request = "%s?%s" %(self.request, urllib.urlencode(params))
 
         hc = httplib.HTTPSConnection(self.url)
@@ -147,14 +149,8 @@ class wcRepo:
                 kv[k] = v.rstrip()
         return kv
 
-def config_hook(conduit):
-    parser = conduit.getOptParser()
-    parser.add_option('', '--enablebeta', dest='enablebeta', 
-        action='store_true', default=False,
-        help="enable one ore more ClearOS BETA repositories")
-
 def init_hook(conduit):
-    global sdn_url, sdn_request, sdn_method
+    global sdn_url, sdn_request, sdn_method, enable_beta
 
     sdn_url = conduit.confString(
         'main', 'sdn_url', default='secure.clearcenter.com')
@@ -162,14 +158,15 @@ def init_hook(conduit):
         'main', 'sdn_request', default='/ws/1.1/marketplace/')
     sdn_method = conduit.confString(
         'main', 'sdn_method', default='get_repo_list')
+    enable_beta = conduit.confString(
+        'main', 'enable_beta', default='False')
 
 def prereposetup_hook(conduit):
     global wc_repos
 
     conduit.info(2, 'ClearCenter Marketplace: fetching repositories...')
 
-    opts, commands = conduit.getCmdLine()
-    wc_repo = wcRepo(conduit._base.arch.basearch, opts.enablebeta)
+    wc_repo = wcRepo(conduit._base.arch.basearch)
     
     try:
         wc_repos = wc_repo.fetch()
