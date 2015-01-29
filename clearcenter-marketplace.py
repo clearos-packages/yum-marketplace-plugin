@@ -70,23 +70,37 @@ class wcRepo:
 
         osname=None
         osversion=None
+
         fh = open('/etc/product', 'r')
         lines = fh.readlines()
         fh.close()
+
         for line in lines:
             kv = self.parse_kv_line(line)
             if not kv.has_key('name'):
                 continue
             osname = kv['name']
             break
+
         if osname == None:
             raise Exception('OS name not found.')
+
         for line in lines:
             kv = self.parse_kv_line(line)
             if not kv.has_key('version'):
                 continue
             osversion = kv['version']
             break
+
+        if osversion == None:
+            fh = open('/etc/clearos-release', 'r')
+            line = fh.readline()
+            fh.close()
+            rx = re.compile(r'release\s+([\d\.]+)')
+            match = rx.search(line)
+            if match != None:
+                osversion = match.group(1)
+
         if osversion == None:
             raise Exception('OS version not found.')
 
