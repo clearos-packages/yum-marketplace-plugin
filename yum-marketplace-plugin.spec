@@ -5,7 +5,7 @@ Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
 License: GPLv3
 URL: http://www.clearfoundation.com
-Source0: %{name}-%{version}.tar.gz
+Source: %{name}-%{version}.tar.gz
 BuildRoot:	%(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
 Requires: python
