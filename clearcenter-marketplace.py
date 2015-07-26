@@ -62,10 +62,6 @@ class wcRepo:
             return input
 
     def fetch(self):
-        if os.path.exists('/var/clearos/registration/registered') == False:
-            raise Exception('check system registration via webconfig...')
-            return []
-
         osvendor = None
         fh = open('/etc/product', 'r')
         lines = fh.readlines()
