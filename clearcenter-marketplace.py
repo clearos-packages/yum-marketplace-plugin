@@ -12,18 +12,20 @@ import shutil
 from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
 from yum.yumRepo import YumRepository as Repository
+from yum.parser import varReplace
 from xml.etree.ElementTree import parse
 
 requires_api_version = '2.3'
 plugin_type = (TYPE_CORE,)
 
 class wcRepo:
-    def __init__(self, arch):
+    def __init__(self, conduit):
 
+        self.conf = conduit.getConf()
         self.url = sdn_url
         self.request = sdn_request
         self.method = sdn_method
-        self.basearch = arch
+        self.basearch = conduit._base.arch.basearch
         self.enable_beta = enable_beta
 
         if os.getenv('SDN_URL') != None:
@@ -36,6 +38,28 @@ class wcRepo:
             self.enable_beta = os.getenv('ENABLE_BETA')
 
         self.organization_vendor = { 'clearcenter.com': 'clear' }
+
+    def parse_kv_line(self, line):
+        kv = {}
+        rx = re.compile(r'\s*(\w+)\s*=\s*(.*),?')
+        for k,v in rx.findall(line):
+            if v[-1] == '"':
+                v = v[1:-1]
+            if '=' in v:
+                kv[k] = self.parse_kv_line(self, v)
+            else:
+                kv[k] = v.rstrip()
+        return kv
+
+    def byteify(self, input):
+        if isinstance(input, dict):
+            return dict([(self.byteify(key), self.byteify(value)) for key, value in input.iteritems()])
+        elif isinstance(input, list):
+            return [self.byteify(element) for element in input]
+        elif isinstance(input, unicode):
+            return input.encode('utf-8')
+        else:
+            return input
 
     def fetch(self):
         if os.path.exists('/var/clearos/registration/registered') == False:
@@ -117,7 +141,7 @@ class wcRepo:
             raise Exception('unable to retrieve repository data.')
 
         buffer = hr.read()
-        response = json.loads(buffer)
+        response = self.byteify(json.loads(buffer))
         if not response.has_key('code') or not response.has_key('repos'):
             raise Exception('malformed repository data response.')
 
@@ -128,59 +152,64 @@ class wcRepo:
         baseurl = False
         for r in response['repos']:
             repo = Repository(r['name'])
-            urls = []
-            for u in r['baseurl']:
-                if len(u['username']) == 0:
-                    url = u['url']
-                else:
-                    url = urlparse(u['url'])
-                    port = 80
-                    if url.port != None:
-                        port = url.port
-                    url = "%s://%s:%s@%s:%s%s" %(
-                        url.scheme, u['username'], u['password'],
-                        url.netloc, port, url.path)
-                urls.append(str(url) + '/' + self.basearch)
+            repo.yumvar = self.conf.yumvar
+            repo.name = varReplace(r['description'], repo.yumvar)
 
-            repo.setAttribute('baseurl', urls)
-            repo.setAttribute('description', r['description'])
+            if 'mirrorlist' in r:
+                repo.setAttribute('mirrorlist', varReplace(r['mirrorlist'], repo.yumvar))
+            else:
+                urls = []
+                for u in r['baseurl']:
+                    url = varReplace(u['url'], repo.yumvar)
+                    if len(u['username']) > 0:
+                        url = urlparse(u['url'])
+                        port = 80
+                        if url.port != None:
+                            port = url.port
+                        url = "%s://%s:%s@%s:%s%s" %(
+                            url.scheme, u['username'], u['password'],
+                            url.netloc, port, url.path)
+                    if u['url'].find('$basearch') < 0:
+                        urls.append(url + '/' + self.basearch)
+                repo.setAttribute('baseurl', urls)
+
             repo.setAttribute('enabled', r['enabled'])
             repo.setAttribute('gpgcheck', r['gpgcheck'])
-            repo.setAttribute('name', r['name'])
-            repo.enable()
+            if 'sslverify' in r:
+                repo.setAttribute('sslverify', r['sslverify'])
+            else:
+                repo.setAttribute('sslverify', 0)
+
+            if 'header' in r:
+                for key, value in r['header'].iteritems():
+                    repo.http_headers['X-KEY-%s' % key.upper()] = value
+
+            if 'header' in response:
+                repo.http_headers['X-HOSTID'] = hostkey
+                for key, value in response['header'].iteritems():
+                    repo.http_headers['X-%s' % key.upper()] = value
+
             repos.append(repo)
         return repos
 
-    def parse_kv_line(self, line):
-        kv = {}
-        rx = re.compile(r'\s*(\w+)\s*=\s*(.*),?')
-        for k,v in rx.findall(line):
-            if v[-1] == '"':
-                v = v[1:-1]
-            if '=' in v:
-                kv[k] = self.parse_kv_line(self, v)
-            else:
-                kv[k] = v.rstrip()
-        return kv
-
-def init_hook(conduit):
+def config_hook(conduit):
     global sdn_url, sdn_request, sdn_method, enable_beta
 
     sdn_url = conduit.confString(
         'main', 'sdn_url', default='secure.clearcenter.com')
     sdn_request = conduit.confString(
-        'main', 'sdn_request', default='/ws/1.1/marketplace/')
+        'main', 'sdn_request', default='/ws/1.2/marketplace/')
     sdn_method = conduit.confString(
         'main', 'sdn_method', default='get_repo_list')
     enable_beta = conduit.confString(
         'main', 'enable_beta', default='False')
 
-def prereposetup_hook(conduit):
+def init_hook(conduit):
     global wc_repos
 
     conduit.info(2, 'ClearCenter Marketplace: fetching repositories...')
 
-    wc_repo = wcRepo(conduit._base.arch.basearch)
+    wc_repo = wcRepo(conduit)
     
     try:
         wc_repos = wc_repo.fetch()
