@@ -184,6 +184,9 @@ class wcRepo:
                 for key, value in r['header'].iteritems():
                     repo.http_headers['X-KEY-%s' % key.upper()] = value
 
+                if not 'everything' in r['header']:
+                    repo.setAttribute('includepkgs', ['{0}*'.format(k) for k in r['header'].keys()])
+
             if 'header' in response:
                 repo.http_headers['X-HOSTID'] = hostkey
                 for key, value in response['header'].iteritems():
