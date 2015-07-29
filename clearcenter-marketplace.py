@@ -175,6 +175,8 @@ class wcRepo:
 
             repo.setAttribute('enabled', r['enabled'])
             repo.setAttribute('gpgcheck', r['gpgcheck'])
+            if 'gpgkey' in r:
+                repo.setAttribute('gpgkey', varReplace(r['gpgkey'], repo.yumvar))
             if 'sslverify' in r:
                 repo.setAttribute('sslverify', r['sslverify'])
             else:
