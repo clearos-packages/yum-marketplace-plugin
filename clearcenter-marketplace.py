@@ -201,7 +201,7 @@ def config_hook(conduit):
     sdn_url = conduit.confString(
         'main', 'sdn_url', default='secure.clearcenter.com')
     sdn_request = conduit.confString(
-        'main', 'sdn_request', default='/ws/1.2/marketplace/')
+        'main', 'sdn_request', default='/ws/1.1/marketplace/')
     sdn_method = conduit.confString(
         'main', 'sdn_method', default='get_repo_list')
     enable_beta = conduit.confString(
