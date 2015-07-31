@@ -152,6 +152,7 @@ class wcRepo:
         baseurl = False
         for r in response['repos']:
             repo = Repository(r['name'])
+            baserepo = re.sub(r'^clearos-(.*?)(-testing)?$',r'\1',r['name'])
             repo.yumvar = self.conf.yumvar
             repo.name = varReplace(r['description'], repo.yumvar)
 
@@ -183,10 +184,14 @@ class wcRepo:
                 repo.setAttribute('sslverify', 0)
 
             if 'header' in r:
-                for key, value in r['header'].iteritems():
-                    repo.http_headers['X-KEY-%s' % key.upper()] = value
+                globalhdr = dict((h,k) for h,k in r['header'].iteritems() if h in ['everything', baserepo])
+                if globalhdr:
+                    for key, value in globalhdr.iteritems():
+                        repo.http_headers['X-KEY-%s' % key.upper()] = value
+                else:
+                    for key, value in r['header'].iteritems():
+                        repo.http_headers['X-KEY-%s' % key.upper()] = value
 
-                if not 'everything' in r['header']:
                     repo.setAttribute('includepkgs', ['{0}*'.format(k) for k in r['header'].keys()])
 
             if 'header' in response:

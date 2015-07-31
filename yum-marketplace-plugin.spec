@@ -1,6 +1,6 @@
 Name: yum-marketplace-plugin
 Version: 2.0
-Release: 2%{?dist}
+Release: 3%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
 License: GPLv3
@@ -34,6 +34,9 @@ rm -rf %{buildroot}
 /usr/lib/yum-plugins/clearcenter-marketplace.*
 
 %changelog
+* Thu Jul 30 2015 ClearCenter <developer@clearcenter.com> - 2.0-3
+- Add ability to auth single repos
+
 * Wed Jul 29 2015 ClearCenter <developer@clearcenter.com> - 2.0-2
 - Exclude packages we don't have permission to install
 - Allow setting gpgkey
