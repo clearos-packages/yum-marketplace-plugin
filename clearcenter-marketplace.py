@@ -13,6 +13,7 @@ from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
 from yum.yumRepo import YumRepository as Repository
 from yum.parser import varReplace
+import yum.misc as misc
 from xml.etree.ElementTree import parse
 
 requires_api_version = '2.3'
@@ -151,6 +152,8 @@ class wcRepo:
             baserepo = re.sub(r'^clearos-(.*?)(-testing)?$',r'\1',r['name'])
             repo.yumvar = self.conf.yumvar
             repo.name = varReplace(r['description'], repo.yumvar)
+            repo.basecachedir = self.conf.cachedir
+            repo.base_persistdir = self.conf._repos_persistdir
 
             if 'mirrorlist' in r:
                 repo.setAttribute('mirrorlist', varReplace(r['mirrorlist'], repo.yumvar))
@@ -168,6 +171,8 @@ class wcRepo:
                             url.netloc, port, url.path)
                     if u['url'].find('$basearch') < 0:
                         urls.append(url + '/' + self.basearch)
+                    else:
+                        urls.append(url)
                 repo.setAttribute('baseurl', urls)
 
             repo.setAttribute('enabled', r['enabled'])
@@ -179,7 +184,14 @@ class wcRepo:
             else:
                 repo.setAttribute('sslverify', 0)
 
-            if 'header' in r:
+            if not r['name'].startswith('private-'):
+                if 'header' not in r:
+                    r['header'] = {}
+
+                if 'header' in response:
+                    repo.http_headers['X-HOSTID'] = hostkey
+                    r['header'].update(response['header'])
+
                 globalhdr = dict((h,k) for h,k in r['header'].iteritems() if h in ['everything', baserepo])
                 if globalhdr:
                     for key, value in globalhdr.iteritems():
@@ -189,11 +201,6 @@ class wcRepo:
                         repo.http_headers['X-KEY-%s' % key.upper()] = value
 
                     repo.setAttribute('includepkgs', ['{0}*'.format(k) for k in r['header'].keys()])
-
-            if 'header' in response:
-                repo.http_headers['X-HOSTID'] = hostkey
-                for key, value in response['header'].iteritems():
-                    repo.http_headers['X-%s' % key.upper()] = value
 
             repos.append(repo)
         return repos
@@ -228,7 +235,7 @@ def close_hook(conduit):
     if 'wc_repos' in globals():
         try:
             for r in wc_repos:
-                shutil.rmtree(str(r), True)
+                shutil.rmtree(r.pkgdir, True)
         except Exception, msg:
             conduit.info(2, 'ClearCenter Marketplace: %s' %msg)
 
