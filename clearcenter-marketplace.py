@@ -8,12 +8,12 @@ import httplib
 import urllib
 import json
 import shutil
+import urlgrabber
 
 from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
 from yum.yumRepo import YumRepository as Repository
 from yum.parser import varReplace
-import yum.misc as misc
 from xml.etree.ElementTree import parse
 
 requires_api_version = '2.3'
@@ -43,7 +43,7 @@ class wcRepo:
     def parse_kv_line(self, line):
         kv = {}
         rx = re.compile(r'\s*(\w+)\s*=\s*(.*),?')
-        for k,v in rx.findall(line):
+        for k, v in rx.findall(line):
             if v[-1] == '"':
                 v = v[1:-1]
             if '=' in v:
@@ -149,7 +149,7 @@ class wcRepo:
         baseurl = False
         for r in response['repos']:
             repo = Repository(r['name'])
-            baserepo = re.sub(r'^clearos-(.*?)(-testing)?$',r'\1',r['name'])
+            baserepo = re.sub(r'^clearos-(.*?)(-testing)?$', r'\1', r['name'])
             repo.yumvar = self.conf.yumvar
             repo.name = varReplace(r['description'], repo.yumvar)
             repo.basecachedir = self.conf.cachedir
@@ -185,22 +185,38 @@ class wcRepo:
                 repo.setAttribute('sslverify', 0)
 
             if not r['name'].startswith('private-'):
-                if 'header' not in r:
-                    r['header'] = {}
+                headers = r.get('header', {})
+                headers.update(response.get('header', {}))
+                if 'expire' in headers:
+                    headers['hostid'] = hostkey
 
-                if 'header' in response:
-                    repo.http_headers['X-HOSTID'] = hostkey
-                    r['header'].update(response['header'])
-
-                globalhdr = dict((h,k) for h,k in r['header'].iteritems() if h in ['everything', baserepo])
-                if globalhdr:
-                    for key, value in globalhdr.iteritems():
+                pkgkeys = True
+                pkg_headers = {}
+                pkgs = []
+                for key, value in headers.iteritems():
+                    key = re.sub(r'^app-', r'', key)
+                    if key in ['hostid', 'expire', 'key']:
+                        repo.http_headers['X-%s' % key.upper()] = value
+                    elif key in ['everyting', baserepo]:
+                        pkgkeys = False
                         repo.http_headers['X-KEY-%s' % key.upper()] = value
-                else:
-                    for key, value in r['header'].iteritems():
-                        repo.http_headers['X-KEY-%s' % key.upper()] = value
+                    else:
+                        pkgs += [key]
+                        pkg_headers['X-KEY-%s' % key.upper()] = value
 
-                    repo.setAttribute('includepkgs', ['{0}*'.format(k) for k in r['header'].keys()])
+                if pkgkeys:
+                    group = re.sub(r'^clearos-', r'', r['name'])
+                    basenames = urllib.quote_plus(' '.join(pkgs))
+                    incurl = 'https://mirrorlist.clearos.com/pkgapi/%s/%s/%s' % (osversion[:1], group, basenames)
+                    try:
+                        incpkgs = urlgrabber.urlread(incurl)
+                        repo.setAttribute('includepkgs', incpkgs.split())
+                        repo.http_headers.update(pkg_headers)
+                    except:
+                        pass
+
+                    if not repo.includepkgs:
+                        repo.setAttribute('includepkgs', ['None'])
 
             repos.append(repo)
         return repos
@@ -211,7 +227,7 @@ def config_hook(conduit):
     sdn_url = conduit.confString(
         'main', 'sdn_url', default='secure.clearcenter.com')
     sdn_request = conduit.confString(
-        'main', 'sdn_request', default='/ws/1.1/marketplace/')
+        'main', 'sdn_request', default='/ws/1.2/marketplace/')
     sdn_method = conduit.confString(
         'main', 'sdn_method', default='get_repo_list')
     enable_beta = conduit.confString(
@@ -223,7 +239,7 @@ def init_hook(conduit):
     conduit.info(2, 'ClearCenter Marketplace: fetching repositories...')
 
     wc_repo = wcRepo(conduit)
-    
+
     try:
         wc_repos = wc_repo.fetch()
         for r in wc_repos:
