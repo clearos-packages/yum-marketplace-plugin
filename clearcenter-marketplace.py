@@ -138,6 +138,7 @@ class wcRepo:
             raise Exception('unable to retrieve repository data.')
 
         buffer = hr.read()
+        hc.close()
         response = self.byteify(json.loads(buffer))
         if not response.has_key('code') or not response.has_key('repos'):
             raise Exception('malformed repository data response.')
@@ -194,7 +195,6 @@ class wcRepo:
                 pkg_headers = {}
                 pkgs = []
                 for key, value in headers.iteritems():
-                    key = re.sub(r'^app-', r'', key)
                     if key in ['hostid', 'expire', 'key']:
                         repo.http_headers['X-%s' % key.upper()] = value
                     elif key in ['everyting', baserepo]:
@@ -205,13 +205,20 @@ class wcRepo:
                         pkg_headers['X-KEY-%s' % key.upper()] = value
 
                 if pkgkeys:
+                    repo.http_headers.update(pkg_headers)
                     group = re.sub(r'^clearos-', r'', r['name'])
-                    basenames = urllib.quote_plus(' '.join(pkgs))
-                    incurl = 'https://mirrorlist.clearos.com/pkgapi/%s/%s/%s' % (osversion[:1], group, basenames)
+                    request = '/pkgapi/%s/%s' % (osversion[:1], group)
+
                     try:
-                        incpkgs = urlgrabber.urlread(incurl)
+                        hc = httplib.HTTPSConnection('mirrorlist.clearos.com')
+                        hc.request("GET", request, None, repo.http_headers)
+                        hr = hc.getresponse()
+                        if hr.status != 200:
+                            raise Exception('unable to retrieve repository data.')
+
+                        incpkgs = hr.read()
+                        hc.close()
                         repo.setAttribute('includepkgs', incpkgs.split())
-                        repo.http_headers.update(pkg_headers)
                     except:
                         pass
 
@@ -227,7 +234,7 @@ def config_hook(conduit):
     sdn_url = conduit.confString(
         'main', 'sdn_url', default='secure.clearcenter.com')
     sdn_request = conduit.confString(
-        'main', 'sdn_request', default='/ws/1.2/marketplace/')
+        'main', 'sdn_request', default='/ws/1.2/marketplace/index.jsp')
     sdn_method = conduit.confString(
         'main', 'sdn_method', default='get_repo_list')
     enable_beta = conduit.confString(

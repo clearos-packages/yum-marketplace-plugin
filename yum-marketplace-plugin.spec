@@ -1,6 +1,6 @@
 Name: yum-marketplace-plugin
 Version: 2.1
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
 License: GPLv3
@@ -34,6 +34,9 @@ rm -rf %{buildroot}
 /usr/lib/yum-plugins/clearcenter-marketplace.*
 
 %changelog
+* Wed Sep 2 2015 ClearCenter <developer@clearcenter.com> - 2.1-2
+- Update how pkgapi is being called
+
 * Tue Sep 1 2015 ClearCenter <developer@clearcenter.com> - 2.1-1
 - Switch to API 1.2
 - Refactor header parsing
