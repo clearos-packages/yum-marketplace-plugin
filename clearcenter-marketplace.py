@@ -120,6 +120,8 @@ class wcRepo:
             return input
 
     def fetch(self):
+        global jws_method
+
         osname=None
         osvendor = None
         osversion=None
