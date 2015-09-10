@@ -8,13 +8,16 @@ import httplib
 import urllib
 import json
 import shutil
+<<<<<<< HEAD
 import random
+=======
+import urlgrabber
+>>>>>>> 79ce2294bc9379a669854a60fdf2db06c9019237
 
 from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
 from yum.yumRepo import YumRepository as Repository
 from yum.parser import varReplace
-import yum.misc as misc
 from xml.etree.ElementTree import parse
 
 requires_api_version = '2.3'
@@ -100,7 +103,7 @@ class wcRepo:
     def parse_kv_line(self, line):
         kv = {}
         rx = re.compile(r'\s*(\w+)\s*=\s*(.*),?')
-        for k,v in rx.findall(line):
+        for k, v in rx.findall(line):
             if v[-1] == '"':
                 v = v[1:-1]
             if '=' in v:
@@ -199,6 +202,7 @@ class wcRepo:
             raise Exception('unable to retrieve repository data.')
 
         buffer = hr.read()
+        hc.close()
         response = self.byteify(json.loads(buffer))
         if not response.has_key('code') or not response.has_key('repos'):
             raise Exception('malformed repository data response.')
@@ -210,7 +214,7 @@ class wcRepo:
         baseurl = False
         for r in response['repos']:
             repo = Repository(r['name'])
-            baserepo = re.sub(r'^clearos-(.*?)(-testing)?$',r'\1',r['name'])
+            baserepo = re.sub(r'^clearos-(.*?)(-testing)?$', r'\1', r['name'])
             repo.yumvar = self.conf.yumvar
             repo.name = varReplace(r['description'], repo.yumvar)
             repo.basecachedir = self.conf.cachedir
@@ -246,27 +250,50 @@ class wcRepo:
                 repo.setAttribute('sslverify', 0)
 
             if not r['name'].startswith('private-'):
-                if 'header' not in r:
-                    r['header'] = {}
+                headers = r.get('header', {})
+                headers.update(response.get('header', {}))
+                if 'expire' in headers:
+                    headers['hostid'] = hostkey
 
-                if 'header' in response:
-                    repo.http_headers['X-HOSTID'] = hostkey
-                    r['header'].update(response['header'])
-
-                globalhdr = dict((h,k) for h,k in r['header'].iteritems() if h in ['everything', baserepo])
-                if globalhdr:
-                    for key, value in globalhdr.iteritems():
+                pkgkeys = True
+                pkg_headers = {}
+                pkgs = []
+                for key, value in headers.iteritems():
+                    if key in ['hostid', 'expire', 'key']:
+                        repo.http_headers['X-%s' % key.upper()] = value
+                    elif key in ['everyting', baserepo]:
+                        pkgkeys = False
                         repo.http_headers['X-KEY-%s' % key.upper()] = value
-                else:
-                    for key, value in r['header'].iteritems():
-                        repo.http_headers['X-KEY-%s' % key.upper()] = value
+                    else:
+                        pkgs += [key]
+                        pkg_headers['X-KEY-%s' % key.upper()] = value
 
-                    repo.setAttribute('includepkgs', ['{0}*'.format(k) for k in r['header'].keys()])
+                if pkgkeys:
+                    repo.http_headers.update(pkg_headers)
+                    group = re.sub(r'^clearos-', r'', r['name'])
+                    request = '/pkgapi/%s/%s' % (osversion[:1], group)
+
+                    try:
+                        hc = httplib.HTTPSConnection('mirrorlist.clearos.com')
+                        hc.request("GET", request, None, repo.http_headers)
+                        hr = hc.getresponse()
+                        if hr.status != 200:
+                            raise Exception('unable to retrieve repository data.')
+
+                        incpkgs = hr.read()
+                        hc.close()
+                        repo.setAttribute('includepkgs', incpkgs.split())
+                    except:
+                        pass
+
+                    if not repo.includepkgs:
+                        repo.setAttribute('includepkgs', ['None'])
 
             repos.append(repo)
         return repos
 
 def config_hook(conduit):
+<<<<<<< HEAD
     global enable_beta
     global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
     global jws_request, enable_beta
@@ -280,6 +307,18 @@ def config_hook(conduit):
     jws_realm = conduit.confString('jws', 'realm', default='ws')
     jws_request = conduit.confString('jws', 'request', default='marketplace/index.jsp')
     jws_version = conduit.confString('jws', 'version', default='1.2')
+=======
+    global sdn_url, sdn_request, sdn_method, enable_beta
+
+    sdn_url = conduit.confString(
+        'main', 'sdn_url', default='secure.clearcenter.com')
+    sdn_request = conduit.confString(
+        'main', 'sdn_request', default='/ws/1.2/marketplace/index.jsp')
+    sdn_method = conduit.confString(
+        'main', 'sdn_method', default='get_repo_list')
+    enable_beta = conduit.confString(
+        'main', 'enable_beta', default='False')
+>>>>>>> 79ce2294bc9379a669854a60fdf2db06c9019237
 
 def init_hook(conduit):
     global wc_repos
@@ -287,7 +326,7 @@ def init_hook(conduit):
     conduit.info(2, 'ClearCenter Marketplace: fetching repositories...')
 
     wc_repo = wcRepo(conduit)
-    
+
     try:
         wc_repos = wc_repo.fetch()
         for r in wc_repos:
