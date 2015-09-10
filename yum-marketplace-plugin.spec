@@ -1,6 +1,6 @@
 Name: yum-marketplace-plugin
-Version: 2.0
-Release: 5%{?dist}
+Version: 2.1
+Release: 1%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
 License: GPLv3
@@ -34,6 +34,9 @@ rm -rf %{buildroot}
 /usr/lib/yum-plugins/clearcenter-marketplace.*
 
 %changelog
+* Fri Sep 11 2015 ClearCenter <developer@clearcenter.com> - 2.1-1
+- 0004972: Remove hard coded API version and add software_id
+
 * Wed Aug 26 2015 ClearCenter <developer@clearcenter.com> - 2.0-5
 - Don't include headers in private repos
 - Global headers override repo headers

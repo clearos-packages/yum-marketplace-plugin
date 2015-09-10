@@ -8,6 +8,7 @@ import httplib
 import urllib
 import json
 import shutil
+import random
 
 from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
@@ -21,24 +22,80 @@ plugin_type = (TYPE_CORE,)
 
 class wcRepo:
     def __init__(self, conduit):
+        global enable_beta
+        global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
+        global jws_request, enable_beta
 
         self.conf = conduit.getConf()
-        self.url = sdn_url
-        self.request = sdn_request
-        self.method = sdn_method
         self.basearch = conduit._base.arch.basearch
+        self.organization_vendor = { 'clearcenter.com': 'clear' }
+
         self.enable_beta = enable_beta
 
-        if os.getenv('SDN_URL') != None:
-            self.url = os.getenv('SDN_URL')
-        if os.getenv('SDN_REQUEST') != None:
-            self.request = os.getenv('SDN_REQUEST')
-        if os.getenv('SDN_METHOD') != None:
-            self.method = os.getenv('SDN_METHOD')
         if os.getenv('ENABLE_BETA') != None:
             self.enable_beta = os.getenv('ENABLE_BETA')
 
-        self.organization_vendor = { 'clearcenter.com': 'clear' }
+        self.product_lines = ''
+
+        try:
+            fh = open('/etc/product', 'r')
+            self.product_lines = fh.readlines()
+            fh.close()
+        except:
+            pass
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_domain'):
+                continue
+            jws_domain = kv['jws_domain']
+            break
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_method'):
+                continue
+            jws_method = kv['jws_method']
+            break
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_nodes'):
+                continue
+            jws_nodes = int(kv['jws_nodes'])
+            break
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_prefix'):
+                continue
+            jws_prefix = kv['jws_prefix']
+            break
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_realm'):
+                continue
+            jws_realm = kv['jws_realm']
+            break
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_request'):
+                continue
+            jws_request = kv['jws_request']
+            break
+
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('jws_version'):
+                continue
+            jws_version = kv['jws_version']
+            break
+
+        random.seed()
+        self.url = "%s%d.%s" %(jws_prefix, random.randint(1, jws_nodes), jws_domain)
+        self.request = "/%s/%s/%s" %(jws_realm, jws_version, jws_request)
 
     def parse_kv_line(self, line):
         kv = {}
@@ -63,11 +120,12 @@ class wcRepo:
             return input
 
     def fetch(self):
+        osname=None
         osvendor = None
-        fh = open('/etc/product', 'r')
-        lines = fh.readlines()
-        fh.close()
-        for line in lines:
+        osversion=None
+        software_id=0
+
+        for line in self.product_lines:
             kv = self.parse_kv_line(line)
             if not kv.has_key('vendor'):
                 continue
@@ -76,27 +134,7 @@ class wcRepo:
         if osvendor == None:
             raise Exception('OS vendor not found.')
 
-        hostkey = None
-        suva_conf = parse(urllib.urlopen('file:///etc/suvad.conf')).getroot()
-        for org in suva_conf.findall('organization'):
-            if not self.organization_vendor.has_key(org.attrib.get('name')):
-                continue
-            if self.organization_vendor[org.attrib.get('name')] != osvendor:
-                continue
-            hostkey = org.findtext('hostkey')
-            break
-
-        if hostkey == None or hostkey == '00000000000000000000000000000000':
-            raise Exception('system hostkey not found.')
-
-        osname=None
-        osversion=None
-
-        fh = open('/etc/product', 'r')
-        lines = fh.readlines()
-        fh.close()
-
-        for line in lines:
+        for line in self.product_lines:
             kv = self.parse_kv_line(line)
             if not kv.has_key('name'):
                 continue
@@ -106,7 +144,7 @@ class wcRepo:
         if osname == None:
             raise Exception('OS name not found.')
 
-        for line in lines:
+        for line in self.product_lines:
             kv = self.parse_kv_line(line)
             if not kv.has_key('version'):
                 continue
@@ -125,10 +163,33 @@ class wcRepo:
         if osversion == None:
             raise Exception('OS version not found.')
 
+        for line in self.product_lines:
+            kv = self.parse_kv_line(line)
+            if not kv.has_key('software_id'):
+                continue
+            software_id = kv['software_id']
+            break
+
+        hostkey = None
+        suva_conf = parse(urllib.urlopen('file:///etc/suvad.conf')).getroot()
+        for org in suva_conf.findall('organization'):
+            if not self.organization_vendor.has_key(org.attrib.get('name')):
+                continue
+            if self.organization_vendor[org.attrib.get('name')] != osvendor:
+                continue
+            hostkey = org.findtext('hostkey')
+            break
+
+        if hostkey == None or hostkey == '00000000000000000000000000000000':
+            raise Exception('system hostkey not found.')
+
         params = {
-            'method': self.method, 'hostkey': hostkey,
+            'method': jws_method, 'hostkey': hostkey,
             'vendor': osvendor, 'osname': osname, 'osversion': osversion,
-            'arch': self.basearch, 'enablebeta': str(self.enable_beta) }
+            'arch': self.basearch, 'enablebeta': str(self.enable_beta),
+            'software_id': software_id
+        }
+
         request = "%s?%s" %(self.request, urllib.urlencode(params))
 
         hc = httplib.HTTPSConnection(self.url)
@@ -206,16 +267,19 @@ class wcRepo:
         return repos
 
 def config_hook(conduit):
-    global sdn_url, sdn_request, sdn_method, enable_beta
+    global enable_beta
+    global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
+    global jws_request, enable_beta
 
-    sdn_url = conduit.confString(
-        'main', 'sdn_url', default='secure.clearcenter.com')
-    sdn_request = conduit.confString(
-        'main', 'sdn_request', default='/ws/1.1/marketplace/')
-    sdn_method = conduit.confString(
-        'main', 'sdn_method', default='get_repo_list')
-    enable_beta = conduit.confString(
-        'main', 'enable_beta', default='False')
+    enable_beta = conduit.confBool('main', 'enable_beta', default=False)
+
+    jws_domain = conduit.confString('jws', 'domain', default='clearsdn.com')
+    jws_method = conduit.confString('jws', 'method', default='get_repo_list')
+    jws_nodes = conduit.confInt('jws', 'nodes', default=1)
+    jws_prefix = conduit.confString('jws', 'prefix', default='cos7-ws')
+    jws_realm = conduit.confString('jws', 'realm', default='ws')
+    jws_request = conduit.confString('jws', 'request', default='marketplace/index.jsp')
+    jws_version = conduit.confString('jws', 'version', default='1.2')
 
 def init_hook(conduit):
     global wc_repos
