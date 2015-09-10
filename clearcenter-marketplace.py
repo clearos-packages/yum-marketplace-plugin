@@ -8,11 +8,8 @@ import httplib
 import urllib
 import json
 import shutil
-<<<<<<< HEAD
 import random
-=======
 import urlgrabber
->>>>>>> 79ce2294bc9379a669854a60fdf2db06c9019237
 
 from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
@@ -293,7 +290,6 @@ class wcRepo:
         return repos
 
 def config_hook(conduit):
-<<<<<<< HEAD
     global enable_beta
     global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
     global jws_request, enable_beta
@@ -307,18 +303,6 @@ def config_hook(conduit):
     jws_realm = conduit.confString('jws', 'realm', default='ws')
     jws_request = conduit.confString('jws', 'request', default='marketplace/index.jsp')
     jws_version = conduit.confString('jws', 'version', default='1.2')
-=======
-    global sdn_url, sdn_request, sdn_method, enable_beta
-
-    sdn_url = conduit.confString(
-        'main', 'sdn_url', default='secure.clearcenter.com')
-    sdn_request = conduit.confString(
-        'main', 'sdn_request', default='/ws/1.2/marketplace/index.jsp')
-    sdn_method = conduit.confString(
-        'main', 'sdn_method', default='get_repo_list')
-    enable_beta = conduit.confString(
-        'main', 'enable_beta', default='False')
->>>>>>> 79ce2294bc9379a669854a60fdf2db06c9019237
 
 def init_hook(conduit):
     global wc_repos
