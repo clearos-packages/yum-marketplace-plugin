@@ -291,7 +291,7 @@ def config_hook(conduit):
     global jws_request, jws_version, enable_beta, osvendor
 
     enable_beta = conduit.confBool('main', 'enable_beta', default=False)
-    osvendor = conduit.confString('main', 'enable_beta', default='clear')
+    osvendor = conduit.confString('main', 'osvendor', default='clear')
 
     jws_domain = conduit.confString('jws', 'domain', default='clearsdn.com')
     jws_method = conduit.confString('jws', 'method', default='get_repo_list')
