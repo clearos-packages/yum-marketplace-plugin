@@ -16,9 +16,38 @@ from yum.plugins import PluginYumExit, TYPE_CORE
 from yum.yumRepo import YumRepository as Repository
 from yum.parser import varReplace
 from xml.etree.ElementTree import parse
+from iniparse import INIConfig
 
 requires_api_version = '2.3'
 plugin_type = (TYPE_CORE,)
+
+def touch(filename):
+    with open(filename, 'a'):
+        os.utime(filename, time())
+
+def update_repo_file(filename, section_id, name, value):
+    ini = INIConfig(open(filename))
+
+    if section_id not in ini._sections:
+        for sect in ini._sections.keys():
+            if varReplace(sect, yumvar) == section_id:
+                section_id = sect
+
+    if (name in ini[section_id]):
+        ini[section_id][name] = value
+
+    fp = file(filename, "w")
+    fp.write(str(ini))
+    fp.close()
+
+def enable_repo(repos, enable=True):
+    for repo in sorted(repos):
+        if enable:
+            repo.enable()
+        else:
+            repo.disable()
+
+        update_repo_file(repo.repofile, repo.id, 'enabled', (1 if enable else 0))
 
 class wcRepo:
     def __init__(self, conduit):
@@ -28,6 +57,7 @@ class wcRepo:
 
         self.conf = conduit.getConf()
         self.basearch = conduit._base.arch.basearch
+        self.yum_repos = conduit.getRepos()
         self.organization_vendor = { 'clearcenter.com': 'clear' }
 
         self.enable_beta = enable_beta
@@ -207,6 +237,13 @@ class wcRepo:
             else:
                 raise Exception('%s Code: %d' %(response['errmsg'], response['code']))
 
+        if not os.path.isfile('/var/clearos/registration/verified') and response.has_key('community') and response['community'] == 1:
+            repos_to_enable = self.yum_repos.findRepos(
+                'clearos-centos,clearos-centos-updates,clearos-epel,clearos-updates',
+                name_match=True, ignore_case=True)
+            enable_repo(repos_to_enable)
+            touch('/var/clearos/registration/verified')
+
         if not response.has_key('repos'):
             raise Exception('malformed response, missing repos.')
 
@@ -221,7 +258,8 @@ class wcRepo:
             repo.base_persistdir = self.conf._repos_persistdir
 
             if 'mirrorlist' in r:
-                repo.setAttribute('mirrorlist', varReplace(r['mirrorlist'], repo.yumvar))
+                repo.setAttribute('mirrorlist',
+                    varReplace(r['mirrorlist'], repo.yumvar))
             else:
                 urls = []
                 for u in r['baseurl']:
