@@ -197,11 +197,18 @@ class wcRepo:
         buffer = hr.read()
         hc.close()
         response = self.byteify(json.loads(buffer))
-        if not response.has_key('code') or not response.has_key('repos'):
-            raise Exception('malformed repository data response.')
+
+        if not response.has_key('code'):
+            raise Exception('malformed response.')
 
         if response['code'] != 0:
-            raise Exception('malformed repository data.')
+            if not response.has_key('errmsg'):
+                raise Exception('request failed, error code: %d' %(response['code']))
+            else:
+                raise Exception('%s Code: %d' %(response['errmsg'], response['code']))
+
+        if not response.has_key('repos'):
+            raise Exception('malformed response, missing repos.')
 
         repos = []
         baseurl = False
