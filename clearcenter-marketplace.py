@@ -24,7 +24,7 @@ class wcRepo:
     def __init__(self, conduit):
         global enable_beta
         global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
-        global jws_request, enable_beta
+        global jws_request, jws_version, enable_beta
 
         self.conf = conduit.getConf()
         self.basearch = conduit._base.arch.basearch
@@ -294,7 +294,7 @@ class wcRepo:
 def config_hook(conduit):
     global enable_beta
     global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
-    global jws_request, enable_beta
+    global jws_request, jws_version, enable_beta
 
     enable_beta = conduit.confBool('main', 'enable_beta', default=False)
 
