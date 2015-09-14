@@ -1,6 +1,6 @@
 Name: yum-marketplace-plugin
 Version: 2.1
-Release: 3%{?dist}
+Release: 4%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
 License: GPLv3
@@ -30,7 +30,7 @@ rm -rf %{buildroot}
 
 %files
 %defattr(-,root,root,-)
-%config(noreplace) %{_sysconfdir}/yum/pluginconf.d/clearcenter-marketplace.conf
+%config(replace) %{_sysconfdir}/yum/pluginconf.d/clearcenter-marketplace.conf
 /usr/lib/yum-plugins/clearcenter-marketplace.*
 
 %changelog

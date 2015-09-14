@@ -120,10 +120,9 @@ class wcRepo:
             return input
 
     def fetch(self):
-        global jws_method
+        global jws_method, osvendor
 
         osname=None
-        osvendor = None
         osversion=None
         software_id=0
 
@@ -133,8 +132,6 @@ class wcRepo:
                 continue
             osvendor = kv['vendor']
             break
-        if osvendor == None:
-            raise Exception('OS vendor not found.')
 
         for line in self.product_lines:
             kv = self.parse_kv_line(line)
@@ -142,9 +139,6 @@ class wcRepo:
                 continue
             osname = kv['name']
             break
-
-        if osname == None:
-            raise Exception('OS name not found.')
 
         for line in self.product_lines:
             kv = self.parse_kv_line(line)
@@ -294,9 +288,10 @@ class wcRepo:
 def config_hook(conduit):
     global enable_beta
     global jws_domain, jws_method, jws_nodes, jws_prefix, jws_prefix, jws_realm
-    global jws_request, jws_version, enable_beta
+    global jws_request, jws_version, enable_beta, osvendor
 
     enable_beta = conduit.confBool('main', 'enable_beta', default=False)
+    osvendor = conduit.confString('main', 'enable_beta', default='clear')
 
     jws_domain = conduit.confString('jws', 'domain', default='clearsdn.com')
     jws_method = conduit.confString('jws', 'method', default='get_repo_list')
