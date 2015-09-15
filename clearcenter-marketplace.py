@@ -10,6 +10,7 @@ import json
 import shutil
 import random
 import urlgrabber
+import time
 
 from urlparse import urlparse
 from yum.plugins import PluginYumExit, TYPE_CORE
@@ -23,7 +24,7 @@ plugin_type = (TYPE_CORE,)
 
 def touch(filename):
     with open(filename, 'a'):
-        os.utime(filename, time())
+        os.utime(filename, time.time())
 
 def update_repo_file(filename, section_id, name, value):
     ini = INIConfig(open(filename))
