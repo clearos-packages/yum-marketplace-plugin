@@ -361,12 +361,4 @@ def init_hook(conduit):
     except Exception, msg:
         conduit.info(2, 'ClearCenter Marketplace: %s' %msg)
 
-def close_hook(conduit):
-    if 'wc_repos' in globals():
-        try:
-            for r in wc_repos:
-                shutil.rmtree(r.pkgdir, True)
-        except Exception, msg:
-            conduit.info(2, 'ClearCenter Marketplace: %s' %msg)
-
 # vi: expandtab shiftwidth=4 softtabstop=4 tabstop=4

@@ -1,6 +1,6 @@
 Name: yum-marketplace-plugin
 Version: 2.1
-Release: 11%{?dist}
+Release: 12%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
 License: GPLv3
@@ -34,6 +34,9 @@ rm -rf %{buildroot}
 /usr/lib/yum-plugins/clearcenter-marketplace.*
 
 %changelog
+* Thu Jan 07 2016 ClearCenter <developer@clearcenter.com> - 2.1-12
+- 0006851: Fixed global cache problem introduced in 2.0.5
+
 * Fri Sep 11 2015 ClearCenter <developer@clearcenter.com> - 2.1-1
 - 0004972: Remove hard coded API version and add software_id
 
