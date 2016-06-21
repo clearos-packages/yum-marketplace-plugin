@@ -1,5 +1,5 @@
 Name: yum-marketplace-plugin
-Version: 1.8
+Version: 1.8.1
 Release: 1%{?dist}
 Summary: Yum plugin to access ClearCenter Marketplace
 Group: System Environment/Base
