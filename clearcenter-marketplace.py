@@ -133,6 +133,8 @@ class wcRepo:
             repo.setAttribute('enabled', r['enabled'])
             repo.setAttribute('gpgcheck', r['gpgcheck'])
             repo.setAttribute('name', r['name'])
+            repo.setAttribute('basecachedir', '/var/cache/yum/marketplace')
+            repo.setAttribute('base_persistdir', '/var/lib/yum/repos/marketplace')
             repo.enable()
             repos.append(repo)
         return repos
